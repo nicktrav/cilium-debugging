@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: load-test-1
+data:
+  targets: |
+    POST http://backend-1.backend:8080/echo
+    @/etc/vegeta/body
+  body: |
+    foo

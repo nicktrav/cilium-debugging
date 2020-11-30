@@ -1,0 +1,33 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: load-test-2
+spec:
+  description: L7 policy - load-test-2
+  endpointSelector:
+    matchLabels:
+      "k8s:io.kubernetes.pod.namespace": load-test
+      "k8s:app": load-test-2
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        "k8s:io.kubernetes.pod.namespace": backend
+        "k8s:app": backend
+        "k8s:version": v1
+    - matchLabels:
+        "k8s:io.kubernetes.pod.namespace": backend
+        "k8s:app": backend
+        "k8s:version": v2
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+      rules:
+        http:
+        - method: GET
+        - method: HEAD
+        - method: POST
+  - toPorts:
+    - ports:
+      - port: "53"
+        protocol: ANY

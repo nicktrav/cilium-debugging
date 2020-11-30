@@ -1,0 +1,7 @@
+backend1:
+  replicas: 1
+  rate: 50/s
+
+backend2:
+  replicas: 1
+  rate: 50/s

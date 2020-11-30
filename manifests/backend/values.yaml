@@ -1,0 +1,5 @@
+backend1:
+  qpsTarget: 25
+
+backend2:
+  qpsTarget: 10
