@@ -12,5 +12,5 @@ spec:
   metrics:
   - type: Pods
     pods:
-      metricName: hubble_http_request_rate
+      metricName: hubble_http_response_rate
       targetAverageValue: {{ .Values.backend2.qpsTarget | quote }}

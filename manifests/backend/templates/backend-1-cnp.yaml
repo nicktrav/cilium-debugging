@@ -17,6 +17,8 @@ spec:
     - matchLabels:
         "k8s:io.kubernetes.pod.namespace": load-test
         "k8s:app": load-test-2
+    - matchLabels:
+        "k8s:io.kubernetes.pod.namespace": cilium-monitoring
     toPorts:
     - ports:
       - port: "8080"

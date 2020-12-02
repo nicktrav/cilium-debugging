@@ -6,16 +6,16 @@ metadata:
 data:
   config.yaml: |
     rules:
-    - seriesQuery: '{__name__="hubble_http_requests_total",source!="",destination!=""}'
+    - seriesQuery: '{__name__="hubble_http_responses_total",source!="",destination!=""}'
       resources:
         overrides:
-          hubble_destination_namespace:
+          hubble_source_namespace:
             resource: "namespace"
-          hubble_destination_pod:
+          hubble_source_pod:
             resource: "pod"
       name:
-        matches: "hubble_http_requests_total"
-        as: "hubble_http_request_rate"
+        matches: "hubble_http_responses_total"
+        as: "hubble_http_response_rate"
       metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[1m])) by (<<.GroupBy>>)'
     - seriesQuery: '{__name__=~"^container_.*",container_name!="POD",namespace!="",pod_name!=""}'
       seriesFilters: []
