@@ -5,3 +5,6 @@ backend1:
 backend2:
   replicas: 1
   rate: 50/s
+
+cnp:
+  enabled: true

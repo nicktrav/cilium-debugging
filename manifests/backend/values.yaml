@@ -1,5 +1,13 @@
 backend1:
+  replicas: 3
   qpsTarget: 25
 
 backend2:
+  replicas: 3
   qpsTarget: 10
+
+cnp:
+  enabled: true
+
+hpa:
+  enabled: true

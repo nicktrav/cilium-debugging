@@ -2,8 +2,28 @@
 # All
 # -----------------------------------------------------------------------------
 
-.PHONY: create
-create: kind cilium k8s-prometheus-adapter backend load-test
+CNP_ENABLED:=false
+HPA_ENABLED:=false
+
+.PHONY: create-with-cilium
+create-with-cilium: KIND_CONFIG=cluster-cilium.yaml
+create-with-cilium: \
+	kind \
+	cilium \
+	monitoring \
+	k8s-prometheus-adapter \
+	backend \
+	load-test
+
+.PHONY: create-without-cilium
+create-without-cilium: KIND_CONFIG=cluster-no-cilium.yaml
+create-without-cilium: CNP_ENABLED=false
+create-without-cilium: \
+	kind \
+	monitoring \
+	k8s-prometheus-adapter \
+	backend \
+	load-test
 
 .PHONY: destroy
 destroy: destroy-cluster
@@ -17,7 +37,7 @@ kind: create-cluster
 
 .PHONY: create-cluster
 create-cluster:
-	@kind create cluster --config cluster.yaml --name cluster || true
+	@kind create cluster --config $(KIND_CONFIG) --name cluster || true
 
 .PHONY: destroy-cluster
 destroy-cluster:
@@ -28,18 +48,28 @@ destroy-cluster:
 # -----------------------------------------------------------------------------
 
 .PHONY: cilium
-cilium: \
-	install-cilium \
-	install-cilium-monitoring \
-	apply-prometheus-configmap-patch
+cilium: install-cilium wait-for-cilium
 
 .PHONY: install-cilium
 install-cilium:
 	@./scripts/install_cilium.sh
 
-.PHONY: install-cilium-monitoring
-install-cilium-monitoring:
-	@./scripts/install_cilium_monitoring.sh
+.PHONY: wait-for-cilium
+wait-for-cilium:
+	@./scripts/wait_for_cilium.sh
+
+# -----------------------------------------------------------------------------
+# Monitoring
+# -----------------------------------------------------------------------------
+#
+.PHONY: monitoring
+monitoring: \
+	install-monitoring \
+	apply-prometheus-configmap-patch
+
+.PHONY: install-monitoring
+install-monitoring:
+	@./scripts/install_monitoring.sh
 
 .PHONY: apply-prometheus-configmap-patch
 apply-prometheus-configmap-patch:
@@ -94,7 +124,7 @@ push-backend-image:
 
 .PHONY: install-backend
 install-backend:
-	@./scripts/install_backend.sh
+	@./scripts/install_backend.sh $(CNP_ENABLED) $(HPA_ENABLED)
 
 # -----------------------------------------------------------------------------
 # Load Test
@@ -116,7 +146,7 @@ push-load-test-image:
 
 .PHONY: install-load-test
 install-load-test:
-	@./scripts/install_load_test.sh
+	@./scripts/install_load_test.sh $(CNP_ENABLED)
 
 # -----------------------------------------------------------------------------
 # Misc.

@@ -13,4 +13,5 @@ helm upgrade \
   load-test \
   "$_chart_dir" \
   --namespace load-test \
+  --set cnp.enabled="$1" \
   --install
