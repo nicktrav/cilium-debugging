@@ -104,7 +104,6 @@ install-k8s-prometheus-adapter:
 .PHONY: backend
 backend: \
 	build-backend \
-	tag-backend \
 	push-backend-image \
 	install-backend
 
@@ -112,15 +111,9 @@ backend: \
 build-backend:
 	@docker build -t backend -f backend/Dockerfile backend
 
-.PHONY: tag-backend
-tag-backend:
-	@docker tag backend backend:v1
-	@docker tag backend backend:v2
-
 .PHONY: push-backend-image
 push-backend-image:
-	@kind load docker-image backend:v1 --name cluster
-	@kind load docker-image backend:v2 --name cluster
+	@kind load docker-image backend --name cluster
 
 .PHONY: install-backend
 install-backend:
