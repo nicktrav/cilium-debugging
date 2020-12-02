@@ -1,114 +1,62 @@
-cilium-custom-metrics-demo
+cilium-debugging
 ==========================
 
-This repo demonstrates how to use Cilium Layer 7 (i.e. HTTP) metrics to drive a
-K8s Horizontal Pod Autoscaler (HPA).
+A repo to aid in reproducing a load balancing issue.
 
-## Components
+Requires `docker`, `kind` and `helm` to run locally.
 
-### [Cilium](https://github.com/cilium/cilium)
-
-The Container Network Interface (CNI) used for networking in the cluster. Runs
-in the `kube-system` namespace.
-
-### [`k8s-prometheus-adapter`](https://github.com/DirectXMan12/k8s-prometheus-adapter)
-
-Provides an interface for the K8s API server to call into to fetch metrics on
-which autoscaling (via an HPA) can be performed. Runs in the `custom-metrics`
-namespace.
-
-### `cilium-monitoring`
-
-Provides a Prometheus and Grafana deployment for monitoring of Cilium
-components. The Prometheus instance is queried by the `k8s-prometheus-adapter`.
-Runs in the `cilium-monitoring` namespace.
-
-### `backend`
-
-A simple HTTP server that echoes a response to a client. Runs in the `backend`
-namespace.
-
-### `load-test`
-
-The load driver. Uses [vegeta](https://github.com/tsenart/vegeta). Runs in the
-`load-test` namespace.
-
-## Setup
-
-The demo requires the following:
-
-- `docker`: for building the `backend` and `load-test` container images. Tested
-  with version `19.0.3`.
-- `kind`: K8s in Docker. Tested with version `v0.8.1`.
-- `helm`: the various components are installed as Helm charts. Tested with
-  `v3.4.0`.
-
-Creating a cluster:
+Tested with Cilium version `v1.9.0` on Ubuntu 20.10:
 
 ```shell
-$ make create
+$ uname -a
+Linux nickt 5.8.0-29-generic #31-Ubuntu SMP Fri Nov 6 12:37:59 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
 ```
 
-From scratch, the cluster can take ~5 minutes to create and for the HPA to
-become active.
+## Reproducer: with Cilium
 
-## Autoscaling
+Builds and spins up a three Pod Deployment of a simple HTTP server and a single
+Pod deployment of a load generator.
 
-Use `make watch-hpa` to view the status of the autoscaler.
+Run `make create-with-cilium` to create a 4 node cluster with Cilium as the
+CNI.
 
-Initially, the autoscaler will be in an unknown state, as it takes some time
-for the monitoring to collect enough metrics and for the Prometheus adapter to
-register the timeseries.
+The load test issues requests on fresh connections to the backend so as to try
+and avoid sticky TCP sessions. Load is generated at a rate of 50 requests per
+second. The expected load on a single Pod should therefore be around 16-17
+requests / per second.
 
-```shell
-$ kubectl get hpa -n backend
-NAME        REFERENCE              TARGETS        MINPODS   MAXPODS   REPLICAS   AGE
-backend-1   Deployment/backend-1   <unknown>/25   1         10        1          7m10s
-backend-2   Deployment/backend-2   <unknown>/10   1         10        1          7m10s
-```
-
-The HPAs should eventually converge to the following state:
-
-- `backend-1`: 2 replicas (load: 50 QPS, target: 25 QPS per pod)
-- `backend-2`: 5 replicas (load: 50 QPS, target: 10 QPS per pod)
-
-The load and target values can be altered in the following files:
-
-- [`manifests/backend/values.yaml`](manifests/backend/values.yaml)
-- [`manifests/load-test/values.yaml`](manifests/load-test/values.yaml)
-
-After changing values, re-deploy with `make install-backend` and / or `make
-install-load-test`.
-
-## Metrics
-
-View metrics in Prometheus with the following:
+Port forward to the Prometheus instance in the cluster:
 
 ```shell
 $ make port-forward-prometheus
 ```
 
-View metrics in Grafana with the following:
+The following metric is a count of requests handled by the backend process and
+is a good indication of traffic distributed to each Pod:
 
-```shell
-$ make port-forward-grafana
+```
+sum(rate(echo_requests{app="backend",version="v1"}[1m])) by (kubernetes_pod_name)
 ```
 
-## Cleanup
+Load should initially be evenly distributed across all three backend Pods.
 
-Destroy a cluster:
+After a few minutes, delete a single backend pod, so that a new pod is created
+in its place. The load should now look unevenly distributed. The two older Pods
+should be receiving more load than the new Pod:
 
-```shell
-$ make destroy
-```
+![](./images/cilium.png)
 
-## Open issues
+In the above, we expect all three lines to continue to trend around the same
+value after the new Pod has been created.
 
-* There is currently an issue with the Cilium metrics that results in metrics
-  being double counted, which can result in the HPA creating twice the number
-  of desired pods.
+## Without Cilium
 
-* Load balancing between the load-test driver and the backend pods is uneven.
-  This is assumed to be due to the use of kube-proxy for load balancing, which
-  is far from perfect in how it distributes load. Cilium can run entirely
-  without kube-proxy, though this scenario was not tested in the kind cluster.
+The same Deployment of a backend and load generator, but in a cluster _without_
+Cilium as the CNI. Instead this just uses the default CNI that ships with Kind.
+
+Run `make create-without-cilium` to set up the cluster without Cilium.
+
+Performing as above, deleting a single Pod should result in load continuing to
+be evenly distributed among all three Pods.
+
+![](./images/without-cilium.png)
