@@ -2,7 +2,8 @@
 # All
 # -----------------------------------------------------------------------------
 
-CNP_ENABLED:=false
+BACKEND_CNP_ENABLED:=false
+LOADTEST_CNP_ENABLED:=false
 HPA_ENABLED:=false
 
 .PHONY: create-with-cilium
@@ -17,7 +18,6 @@ create-with-cilium: \
 
 .PHONY: create-without-cilium
 create-without-cilium: KIND_CONFIG=cluster-no-cilium.yaml
-create-without-cilium: CNP_ENABLED=false
 create-without-cilium: \
 	kind \
 	monitoring \
@@ -117,7 +117,7 @@ push-backend-image:
 
 .PHONY: install-backend
 install-backend:
-	@./scripts/install_backend.sh $(CNP_ENABLED) $(HPA_ENABLED)
+	@./scripts/install_backend.sh $(BACKEND_CNP_ENABLED) $(HPA_ENABLED)
 
 # -----------------------------------------------------------------------------
 # Load Test
@@ -139,7 +139,7 @@ push-load-test-image:
 
 .PHONY: install-load-test
 install-load-test:
-	@./scripts/install_load_test.sh $(CNP_ENABLED)
+	@./scripts/install_load_test.sh $(LOADTEST_CNP_ENABLED)
 
 # -----------------------------------------------------------------------------
 # Misc.
@@ -151,7 +151,7 @@ check-api:
 
 .PHONY: port-forward-prometheus
 port-forward-prometheus:
-	@echo "Open http://localhost:9090/graph?g0.range_input=1h&g0.expr=hubble_http_requests_total&g0.tab=1"
+	@echo "Open http://localhost:9090/graph?g0.range_input=15m&g0.stacked=0&g0.expr=sum(rate(echo_requests%7Bapp%3D%22backend%22%2Cversion%3D%22v1%22%7D%5B1m%5D))%20by%20(kubernetes_pod_name)&g0.tab=0&g1.range_input=15m&g1.expr=sum(rate(echo_requests%7Bapp%3D%22backend%22%2Cversion%3D%22v1%22%7D%5B1m%5D))&g1.tab=0"
 	@kubectl -n cilium-monitoring port-forward svc/prometheus 9090:9090
 
 .PHONY: port-forward-grafana
